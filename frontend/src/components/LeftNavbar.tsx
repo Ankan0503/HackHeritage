@@ -86,7 +86,7 @@ const navItems: {
 /** ORCA-X wordmark: a sounding mark struck over a contour. */
 const Wordmark: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
   <div className="flex items-center gap-3">
-    <OrcaWaveLogo size="md" variant="sidebar" theme="light" className="shrink-0" />
+    <OrcaWaveLogo size="md" variant="sidebar" className="shrink-0" />
     <div className="min-w-0 flex-1">
       <OrcaWordmark
         size="md"
