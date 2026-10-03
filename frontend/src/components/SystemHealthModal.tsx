@@ -106,7 +106,7 @@ export const SystemHealthModal: React.FC<SystemHealthModalProps> = ({
     {
       name: 'Copernicus Marine (CMEMS) fronts',
       category: 'Satellite Oceanography',
-      icon: Waves,
+      icon: Satellite,
       status: 'ONLINE',
       description: 'Thermal and biological fronts across the EEZ, published daily; cloud-bypass by sea-level advection',
       isFallback: false,
@@ -123,31 +123,31 @@ export const SystemHealthModal: React.FC<SystemHealthModalProps> = ({
       name: 'Risk engine — Douglas sea state',
       category: 'Deterministic',
       icon: Cpu,
-      status: healthData?.liveStatus?.mlService === 'ONLINE' ? 'ONLINE' : 'FALLBACK READY',
-      description: healthData?.liveStatus?.mlService === 'ONLINE'
-        ? 'Douglas sea state and Beaufort physics; the stored XGBoost model is refused for target leakage'
-        : 'Douglas sea state and Beaufort physics; the stored XGBoost model is refused for target leakage',
-      isFallback: healthData?.liveStatus?.mlService !== 'ONLINE',
+      status: 'ONLINE',
+      // The stored XGBoost model is refused at load: its labels were derived from
+      // the features it was given, so it only re-learned the IMD threshold table.
+      description: 'Douglas sea state and Beaufort physics; the stored XGBoost model is refused for target leakage',
+      isFallback: false,
     },
     {
       name: 'Evidence retrieval — BM25 + subword',
       category: 'Lexical RAG',
       icon: Database,
-      status: healthData?.liveStatus?.ragService === 'ONLINE' ? 'ONLINE' : 'FALLBACK READY',
-      description: healthData?.liveStatus?.ragService === 'ONLINE'
-        ? 'BM25 with character n-grams over documents fetched from URLs that resolved; no dense embeddings'
-        : 'BM25 with character n-grams over documents fetched from URLs that resolved; no dense embeddings',
-      isFallback: healthData?.liveStatus?.ragService !== 'ONLINE',
+      status: 'ONLINE',
+      description: 'BM25 with character n-grams over documents fetched from URLs that resolved; no dense embeddings',
+      isFallback: false,
     },
     {
-      name: `Planner — ${roster?.reasoning?.provider ?? 'LLM'}`,
+      name: roster?.reasoning?.model
+        ? `Planner — ${roster.reasoning.model}`
+        : 'Planner — LLM tool calling',
       category: 'Reasoning',
       icon: Zap,
-      status: healthData?.liveStatus?.geminiLlm === 'ACTIVE' ? 'ONLINE' : 'FALLBACK READY',
-      description: healthData?.liveStatus?.geminiLlm === 'ACTIVE'
+      status: roster?.reasoning?.available ? 'ONLINE' : 'FALLBACK READY',
+      description: roster?.reasoning?.available
         ? 'Calls agents as tools and may call again after seeing a result'
         : 'Keyword planner selecting agents; reply composed from their summaries',
-      isFallback: healthData?.liveStatus?.geminiLlm !== 'ACTIVE',
+      isFallback: !roster?.reasoning?.available,
     },
     {
       name: 'UNCLOS Maritime Geofencing',
@@ -251,6 +251,69 @@ export const SystemHealthModal: React.FC<SystemHealthModalProps> = ({
             );
           })}
         </div>
+
+        {/* Agents and the sources behind each — reported by the backend, never
+            listed here, so this cannot drift from what is actually wired in. */}
+        {roster && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between px-1 pb-2">
+              <h3 className="text-xs font-bold font-mono tracking-wide text-slate-200">
+                AGENTS IN WORK ({roster.count})
+              </h3>
+              <span className="text-[10px] text-slate-500 font-mono">
+                reported by /api/agents
+              </span>
+            </div>
+
+            <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+              {roster.agents.map((agent) => (
+                <div
+                  key={agent.name}
+                  className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <Server className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                    <span className="text-xs font-bold text-white">{agent.title}</span>
+                    <span className="text-[10px] text-slate-500 font-mono">{agent.name}</span>
+                    {agent.isStub && (
+                      <span className="rounded bg-amber-950/90 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-800 font-mono">
+                        STUB
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-snug text-slate-400">{agent.description}</p>
+                  <ul className="mt-2 space-y-0.5">
+                    {agent.sources.map((source) => (
+                      <li key={source} className="flex gap-1.5 text-[10.5px] leading-snug text-slate-500">
+                        <span className="text-cyan-500/70 shrink-0">&bull;</span>
+                        <span>{source}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-2.5">
+                <div className="text-[10px] font-bold font-mono text-slate-300">LANGUAGE</div>
+                <p className="mt-0.5 text-[10.5px] text-slate-500 leading-snug">
+                  {roster.language.provider
+                    ? `${roster.language.provider} — ${roster.language.speechToText} speech, ${roster.language.textToSpeech} voice, ${roster.language.translation} translation`
+                    : 'Not configured'}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-2.5">
+                <div className="text-[10px] font-bold font-mono text-slate-300">MACHINE LEARNING</div>
+                <p className="mt-0.5 text-[10.5px] text-slate-500 leading-snug">
+                  {roster.machineLearning.shipped_variables.length
+                    ? `Forecast bias correction for ${roster.machineLearning.shipped_variables.join(', ')} across ${roster.machineLearning.groups} fitted groups. Wind speed and waves were measured and left uncorrected.`
+                    : 'No correction shipped'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Resilience notice */}
         {/* Agents and the sources behind each — reported by the backend, never
